@@ -93,11 +93,16 @@ print_paths_if_exist(Paths, State) ->
     RealPaths = lists:filter(fun(P) -> ec_file:is_dir(P) end, Paths),
     io:format("~ts", [rebar_string:join(RealPaths, Sep)]).
 
+get_parsed_deps_deps(State, Profile) ->
+    Apps = rebar_state:get(State, {parsed_deps, Profile}, []),
+    lists:foldl(fun(App, Acc) -> rebar_app_info:get(App, deps, []) ++ Acc end, [], Apps).
+
 project_deps(State) ->
     Profiles = rebar_state:current_profiles(State),
     DepList = lists:foldl(fun(Profile, Acc) -> rebar_state:get(State, {deps, Profile}, []) ++ Acc end, [], Profiles),
     LockList = lists:foldl(fun(Profile, Acc) -> rebar_state:get(State, {locks, Profile}, []) ++ Acc end, [], Profiles),
-    Deps = [normalize(name(Dep)) || Dep <- DepList++LockList],
+    DepsDeps = lists:foldl(fun(Profile, Acc) -> get_parsed_deps_deps(State, Profile) ++ Acc end, [], Profiles),
+    Deps = [normalize(name(Dep)) || Dep <- DepList++LockList++DepsDeps],
     lists:usort(Deps).
 
 name(App) when is_tuple(App) -> element(1, App);
